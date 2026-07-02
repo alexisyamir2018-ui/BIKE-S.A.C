@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bike SAC · Sistema de Costeo ABC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0F1519; --panel:#18222B; --panel2:#1F2D38; --line:#2A3947;
+  --text:#E8EDF2; --muted:#8A97A5;
+  --amber:#F5A623; --amber-dim:#B87A16;
+  --cyan:#4FB3BF; --cyan-dim:#2E7A84;
+  --green:#6FBF73; --red:#E06C5A; --gold:#E8C468;
+  --lav:#9D8FD0; --rose:#D98A9E; --tan:#D9995C;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-size:16px;line-height:1.55;overflow-x:hidden}
+::selection{background:var(--amber);color:#0F1519}
+
+/* ============ SPLASH ============ */
+#splash{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;transition:opacity .7s ease,visibility .7s}
+#splash.hide{opacity:0;visibility:hidden}
+#splash svg{width:min(340px,70vw)}
+#splash .frame-path{fill:none;stroke:var(--amber);stroke-width:3.5;stroke-linecap:round;stroke-dasharray:1200;stroke-dashoffset:1200;animation:weld 2.2s ease forwards}
+#splash .wheel{fill:none;stroke:var(--cyan);stroke-width:2.5;stroke-dasharray:400;stroke-dashoffset:400;animation:weld 1.6s .9s ease forwards}
+@keyframes weld{to{stroke-dashoffset:0}}
+#splash .spark{fill:var(--amber);animation:sparkle 1.2s ease-in-out infinite}
+@keyframes sparkle{0%,100%{opacity:.2;r:3}50%{opacity:1;r:5}}
+#splash h1{font-family:'Saira Condensed';font-size:clamp(26px,5vw,40px);font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+#splash h1 span{color:var(--amber)}
+#splash p{font-family:'IBM Plex Mono';font-size:12px;color:var(--muted);letter-spacing:.22em;text-transform:uppercase}
+@media(prefers-reduced-motion:reduce){#splash .frame-path,#splash .wheel{animation:none;stroke-dashoffset:0}}
+
+/* ============ NAV ============ */
+nav{position:sticky;top:0;z-index:100;background:rgba(15,21,25,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.nav-inner{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:8px;padding:10px 22px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px;margin-right:auto;text-decoration:none;color:var(--text)}
+.logo svg{width:44px;height:30px}
+.logo-name{font-family:'Saira Condensed';font-weight:800;font-size:20px;letter-spacing:.1em}
+.logo-name b{color:var(--amber)}
+.logo-sub{display:block;font-family:'IBM Plex Mono';font-size:8.5px;color:var(--muted);letter-spacing:.24em;font-weight:400}
+.tab{font-family:'Saira Condensed';font-weight:600;font-size:14.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;padding:8px 11px;cursor:pointer;transition:.22s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--amber);border-bottom-color:var(--amber)}
+.tab:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:3px}
+
+/* ============ SECTIONS ============ */
+main{max-width:1240px;margin:0 auto;padding:0 22px 90px}
+section{display:none;animation:fadeUp .5s ease}
+section.show{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.eyebrow{font-family:'IBM Plex Mono';font-size:11.5px;color:var(--cyan);letter-spacing:.28em;text-transform:uppercase;margin:46px 0 6px}
+h2{font-family:'Saira Condensed';font-size:clamp(30px,4.4vw,46px);font-weight:800;letter-spacing:.02em;text-transform:uppercase;line-height:1.04;margin-bottom:14px}
+h2 em{color:var(--amber);font-style:normal}
+h3{font-family:'Saira Condensed';font-size:21px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin:34px 0 12px;color:var(--text)}
+h3 .tick{color:var(--amber)}
+.lead{color:var(--muted);max-width:760px;font-size:16.5px}
+
+/* ============ HERO (frame diagram) ============ */
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:36px;align-items:center;padding:52px 0 20px}
+@media(max-width:900px){.hero{grid-template-columns:1fr}}
+.hero h2{font-size:clamp(36px,5.4vw,58px)}
+.hero .lead{margin:10px 0 26px}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:460px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber);padding:13px 16px;border-radius:6px}
+.kpi .v{font-family:'IBM Plex Mono';font-size:24px;font-weight:600;color:var(--text)}
+.kpi .l{font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.frame-wrap{position:relative}
+.frame-wrap svg{width:100%;height:auto}
+.fw-path{fill:none;stroke:#54687A;stroke-width:7;stroke-linecap:round}
+.fw-glow{fill:none;stroke:var(--amber);stroke-width:2;stroke-linecap:round;opacity:.85}
+.node{cursor:pointer;transition:.2s}
+.node circle{fill:var(--panel2);stroke:var(--cyan);stroke-width:2}
+.node:hover circle,.node.on circle{fill:var(--amber);stroke:var(--amber)}
+.node text{font-family:'IBM Plex Mono';font-size:11px;fill:var(--cyan);text-anchor:middle}
+.node:hover text,.node.on text{fill:var(--amber)}
+.node-tip{position:absolute;background:var(--panel2);border:1px solid var(--amber);border-radius:8px;padding:12px 16px;font-size:13.5px;pointer-events:none;opacity:0;transition:.25s;min-width:210px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.node-tip.on{opacity:1}
+.node-tip b{font-family:'Saira Condensed';font-size:16px;letter-spacing:.05em;display:block;color:var(--amber)}
+.node-tip .m{font-family:'IBM Plex Mono';font-size:17px;color:var(--text)}
+.node-tip .d{color:var(--muted);font-size:12px}
+.hint{font-family:'IBM Plex Mono';font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-align:center;margin-top:6px}
+
+/* ============ CARDS / GRIDS ============ */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px 22px}
+.card h4{font-family:'Saira Condensed';font-size:17px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;color:var(--amber)}
+.card p{color:var(--muted);font-size:14.5px}
+.card .big{font-family:'IBM Plex Mono';font-size:26px;color:var(--text);font-weight:600;margin:4px 0}
+.tagrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.tag{font-family:'IBM Plex Mono';font-size:11px;padding:3px 10px;border-radius:20px;border:1px solid var(--cyan-dim);color:var(--cyan);letter-spacing:.05em}
+
+/* ============ FLOW (proceso productivo) ============ */
+.flow{display:flex;gap:0;align-items:stretch;flex-wrap:wrap;margin:18px 0}
+.step{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line);padding:16px 14px;position:relative;transition:.25s;cursor:default}
+.step:not(:last-child)::after{content:"";position:absolute;right:-9px;top:50%;transform:translateY(-50%) rotate(45deg);width:16px;height:16px;background:var(--panel);border-top:1px solid var(--line);border-right:1px solid var(--line);z-index:2}
+.step:hover{background:var(--panel2);transform:translateY(-3px)}
+.step .n{font-family:'IBM Plex Mono';font-size:11px;color:var(--amber);letter-spacing:.15em}
+.step .t{font-family:'Saira Condensed';font-size:17px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:2px 0}
+.step .d{font-size:12.5px;color:var(--muted)}
+.step .cost{font-family:'IBM Plex Mono';font-size:14px;color:var(--cyan);margin-top:6px}
+.step.apoyo{border-left:3px solid var(--rose)}
+.step.estrat{border-left:3px solid var(--lav)}
+.step.oper{border-left:3px solid var(--tan)}
+
+/* ============ TABLES ============ */
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.search{flex:1;min-width:220px;background:var(--panel);border:1px solid var(--line);color:var(--text);font-family:'Barlow';font-size:14.5px;padding:9px 14px;border-radius:6px}
+.search:focus{outline:2px solid var(--cyan);border-color:var(--cyan)}
+.fbtn{font-family:'IBM Plex Mono';font-size:12px;background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:8px 14px;border-radius:20px;cursor:pointer;transition:.2s;letter-spacing:.04em}
+.fbtn:hover{color:var(--text);border-color:var(--muted)}
+.fbtn.on{background:var(--amber);border-color:var(--amber);color:#14100A;font-weight:600}
+.twrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+th{font-family:'Saira Condensed';font-size:13.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;text-align:left;color:var(--muted);background:var(--panel2);padding:11px 14px;position:sticky;top:0}
+td{padding:9px 14px;border-top:1px solid var(--line);vertical-align:middle}
+tr:hover td{background:rgba(79,179,191,.05)}
+td.mono,th.mono{font-family:'IBM Plex Mono';font-size:13px}
+td.num,th.num{text-align:right;font-family:'IBM Plex Mono';font-size:13px}
+.ec{font-family:'IBM Plex Mono';font-size:12px;color:var(--amber);font-weight:600}
+.ind-chip{font-family:'IBM Plex Mono';font-size:11.5px;background:rgba(79,179,191,.12);color:var(--cyan);border:1px solid var(--cyan-dim);padding:2px 9px;border-radius:14px;white-space:nowrap;cursor:help}
+.cat-PERSONAL{color:var(--gold)} .cat-INSUMOS{color:var(--tan)} .cat-SERVICIOS{color:var(--green)} .cat-OTROS{color:var(--rose)}
+tfoot td{background:var(--panel2);font-weight:700;font-family:'IBM Plex Mono';color:var(--amber)}
+
+/* toggle */
+.toggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:10px 0}
+.toggle button{font-family:'Saira Condensed';font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;background:var(--panel);border:none;color:var(--muted);padding:9px 20px;cursor:pointer;transition:.2s}
+.toggle button.on{background:var(--amber);color:#14100A}
+
+/* ============ ACCORDION (Proceso 2) ============ */
+.acc{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px;background:var(--panel)}
+.acc-head{display:flex;align-items:center;gap:14px;padding:15px 20px;cursor:pointer;user-select:none;transition:.2s}
+.acc-head:hover{background:var(--panel2)}
+.acc-head .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.acc-head .name{font-family:'Saira Condensed';font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;flex:1}
+.acc-head .amt{font-family:'IBM Plex Mono';font-size:15px;color:var(--cyan)}
+.acc-head .chev{transition:.3s;color:var(--muted)}
+.acc.open .chev{transform:rotate(180deg)}
+.acc-body{max-height:0;overflow:hidden;transition:max-height .45s ease}
+.acc.open .acc-body{max-height:700px}
+.acc-body .inner{padding:4px 20px 18px}
+.bar-row{display:grid;grid-template-columns:64px 1fr 200px 90px;gap:12px;align-items:center;padding:7px 0;border-top:1px solid var(--line);font-size:13.5px}
+.bar-row:first-child{border-top:none}
+.bar-row .cod{font-family:'IBM Plex Mono';color:var(--amber);font-size:12px}
+.bar-row .ind{font-family:'IBM Plex Mono';font-size:11px;color:var(--cyan)}
+.bar-row .amtc{font-family:'IBM Plex Mono';font-size:12.5px;text-align:right;color:var(--text)}
+.mini-bar{height:7px;background:var(--panel2);border-radius:4px;overflow:hidden}
+.mini-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--amber));border-radius:4px;width:0;transition:width .9s ease}
+@media(max-width:700px){.bar-row{grid-template-columns:52px 1fr 80px;}.bar-row .ind{display:none}}
+
+/* ============ CHARTS ============ */
+.chart-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px}
+.chart-card h4{font-family:'Saira Condensed';font-size:16px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.chart-box{position:relative;height:320px}
+
+/* ============ VERDICTS ============ */
+.verdict{display:grid;grid-template-columns:210px 1fr 120px;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 18px;margin-bottom:10px}
+@media(max-width:750px){.verdict{grid-template-columns:1fr;gap:6px}}
+.verdict .nv{font-family:'Saira Condensed';font-weight:700;font-size:15.5px;letter-spacing:.04em;text-transform:uppercase}
+.verdict .dv{color:var(--muted);font-size:13.5px}
+.badge{font-family:'IBM Plex Mono';font-size:12px;font-weight:600;text-align:center;padding:5px 10px;border-radius:20px;letter-spacing:.06em}
+.b-ok{background:rgba(111,191,115,.14);color:var(--green);border:1px solid rgba(111,191,115,.4)}
+.b-warn{background:rgba(232,196,104,.13);color:var(--gold);border:1px solid rgba(232,196,104,.4)}
+.callout{background:linear-gradient(135deg,rgba(245,166,35,.09),rgba(79,179,191,.07));border:1px solid var(--amber-dim);border-radius:8px;padding:20px 24px;margin:22px 0}
+.callout b{color:var(--amber)}
+footer{border-top:1px solid var(--line);margin-top:60px;padding:26px 22px;text-align:center;font-family:'IBM Plex Mono';font-size:11.5px;color:var(--muted);letter-spacing:.06em}
+footer a{color:var(--cyan)}
+</style>
+</head>
+<body>
+
+<!-- ============ SPLASH ============ -->
+<div id="splash" role="status" aria-label="Cargando">
+  <svg viewBox="0 0 400 240" aria-hidden="true">
+    <circle class="wheel" cx="80" cy="185" r="46"/>
+    <circle class="wheel" cx="320" cy="185" r="46"/>
+    <path class="frame-path" d="M80 185 L155 90 L285 90 L320 185 L185 185 L155 90 M185 185 L285 90 M285 90 L295 62 M270 62 L312 62 M155 90 L142 60 M120 60 L165 60"/>
+    <circle class="spark" cx="185" cy="185" r="4"/>
+  </svg>
+  <h1>BIKE <span>SAC</span></h1>
+  <p>Sistema de Costeo ABC · 2022</p>
+</div>
+
+<!-- ============ NAV ============ -->
+<nav>
+  <div class="nav-inner">
+    <a class="logo" href="#" onclick="go('contexto');return false;" aria-label="Bike SAC inicio">
+      <svg viewBox="0 0 88 60" aria-hidden="true">
+        <circle cx="16" cy="45" r="12" fill="none" stroke="#4FB3BF" stroke-width="2.5"/>
+        <circle cx="72" cy="45" r="12" fill="none" stroke="#4FB3BF" stroke-width="2.5"/>
+        <path d="M16 45 L33 20 L62 20 L72 45 L40 45 L33 20 M40 45 L62 20" fill="none" stroke="#F5A623" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <span class="logo-name">BIKE <b>SAC</b><span class="logo-sub">COSTEO ABC · METALMECÁNICA</span></span>
+    </a>
+    <button class="tab active" data-s="contexto" onclick="go('contexto')">Contexto</button>
+    <button class="tab" data-s="elementos" onclick="go('elementos')">Elementos</button>
+    <button class="tab" data-s="proceso1" onclick="go('proceso1')">Proceso 1</button>
+    <button class="tab" data-s="proceso2" onclick="go('proceso2')">Actividades</button>
+    <button class="tab" data-s="proceso3" onclick="go('proceso3')">Proceso 3</button>
+    <button class="tab" data-s="proceso4" onclick="go('proceso4')">Proceso 4</button>
+    <button class="tab" data-s="apoyo" onclick="go('apoyo')">Apoyo Admin.</button>
+    <button class="tab" data-s="productos" onclick="go('productos')">Productos</button>
+    <button class="tab" data-s="analisis" onclick="go('analisis')">Análisis</button>
+  </div>
+</nav>
+
+<main>
+<!-- ============ SECCIÓN: CONTEXTO ============ -->
+<section id="contexto" class="show">
+  <div class="hero">
+    <div>
+      <p class="eyebrow">Callao · Perú · Metalmecánica</p>
+      <h2>El costo real de<br>fabricar un <em>marco</em><br>a mano</h2>
+      <p class="lead">Bike SAC suelda marcos de bicicleta en cromo-molibdeno para ciclistas de EE.UU. y Alemania. Este sistema de costeo ABC sigue cada sol desde el recurso hasta el producto — con el inductor que lo explica.</p>
+      <div class="kpis">
+        <div class="kpi"><div class="v" data-count="71099" data-pre="S/ ">S/ 0</div><div class="l">Costo total · Dic 2022</div></div>
+        <div class="kpi"><div class="v" data-count="166">0</div><div class="l">Marcos producidos</div></div>
+        <div class="kpi"><div class="v" data-count="428" data-pre="S/ ">S/ 0</div><div class="l">Costo unitario promedio</div></div>
+        <div class="kpi"><div class="v" data-count="8">0</div><div class="l">Líneas de producto</div></div>
+      </div>
+    </div>
+    <div class="frame-wrap">
+      <svg viewBox="0 0 480 320" id="heroframe" aria-label="Diagrama del marco con centros de actividad">
+        <circle cx="95" cy="240" r="58" class="fw-path" style="stroke-width:3;opacity:.35"/>
+        <circle cx="385" cy="240" r="58" class="fw-path" style="stroke-width:3;opacity:.35"/>
+        <path class="fw-path" d="M95 240 L185 115 L345 115 L385 240 L225 240 L185 115 M225 240 L345 115 M345 115 L357 78 M330 78 L384 78 M185 115 L170 80 M143 80 L200 80"/>
+        <path class="fw-glow" d="M95 240 L185 115 L345 115 L385 240 L225 240 L185 115 M225 240 L345 115"/>
+        <g class="node" data-c="0" transform="translate(357,78)"><circle r="13"/><text y="-20">CAE</text></g>
+        <g class="node" data-c="1" transform="translate(95,240)"><circle r="13"/><text y="-20">CAA1</text></g>
+        <g class="node" data-c="2" transform="translate(265,115)"><circle r="13"/><text y="-20">CAO1</text></g>
+        <g class="node" data-c="3" transform="translate(225,240)"><circle r="13"/><text y="-20">CAO2</text></g>
+        <g class="node" data-c="4" transform="translate(385,240)"><circle r="13"/><text y="-20">CAO3</text></g>
+      </svg>
+      <div class="node-tip" id="tip"></div>
+      <p class="hint">▸ Toca cada nodo del cuadro: son los 5 centros de actividad</p>
+    </div>
+  </div>
+
+  <p class="eyebrow">Perfil</p>
+  <h3>La empresa <span class="tick">—</span> quién es Bike SAC</h3>
+  <div class="grid3">
+    <div class="card"><h4>Origen</h4><p>Microempresa fundada en <b style="color:var(--text)">2010</b> en el Callao. 13 trabajadores. Inscrita en REMYPE, régimen laboral de microempresa.</p></div>
+    <div class="card"><h4>Producto</h4><p>Marcos de bicicleta hechos a mano en tubería de <b style="color:var(--text)">cromo-molibdeno</b> importada de China y Taiwán.</p></div>
+    <div class="card"><h4>Mercado</h4><p>Exportación a <b style="color:var(--text)">EE.UU. y Alemania</b> (más del 80% de las ventas). Clientes: ciclistas profesionales y aficionados exigentes.</p></div>
+  </div>
+
+  <h3>Dos líneas de negocio <span class="tick">—</span> dos formas de producir</h3>
+  <div class="grid2">
+    <div class="card"><h4>Personalizados</h4><p>Cada marco es un pedido único: geometría, ángulos, colores y grabados a medida del cliente. Se costea <b style="color:var(--cyan)">por pedido</b>.</p>
+    <div class="tagrow"><span class="tag">Enduro</span><span class="tag">FS Full Suspensión</span><span class="tag">Grava</span><span class="tag">Carrera</span><span class="tag">Ciclocross</span><span class="tag">Bikepacking</span></div></div>
+    <div class="card"><h4>En serie</h4><p>Modelos estándar del catálogo web, sin modificaciones. Producción continua que se costea <b style="color:var(--cyan)">por procesos</b>. La combinación de ambos métodos = <b style="color:var(--text)">costeo híbrido</b>.</p>
+    <div class="tagrow"><span class="tag">Modelos estándar</span><span class="tag">Horquillas</span></div></div>
+  </div>
+
+  <h3>El recorrido del marco <span class="tick">—</span> centros de actividad</h3>
+  <div class="flow">
+    <div class="step estrat"><div class="n">CAE · ESTRATÉGICO</div><div class="t">Diseño</div><div class="d">Plano técnico y especificaciones del pedido</div><div class="cost">S/ 4,090.10</div></div>
+    <div class="step oper"><div class="n">CAO1 · OPERATIVO</div><div class="t">Corte y Maquinado</div><div class="d">Corta, conifica, fresa y tornea la tubería</div><div class="cost">S/ 12,733.86</div></div>
+    <div class="step oper"><div class="n">CAO2 · OPERATIVO</div><div class="t">Armado</div><div class="d">Suelda, alinea y controla calidad</div><div class="cost">S/ 15,174.35</div></div>
+    <div class="step oper"><div class="n">CAO3 · OPERATIVO</div><div class="t">Acabados</div><div class="d">Arena, pinta, hornea y embala</div><div class="cost">S/ 9,978.26</div></div>
+  </div>
+  <div class="flow">
+    <div class="step apoyo"><div class="n">CAA1 · APOYO</div><div class="t">Almacén</div><div class="d">Custodia y entrega materiales</div><div class="cost">S/ 1,235.73</div></div>
+    <div class="step apoyo"><div class="n">CAA2 · APOYO ADMIN.</div><div class="t">Contabilidad y Finanzas</div><div class="d">EE.FF., cobranzas de exportación, planilla, SUNAT</div><div class="cost">S/ 1,200.00</div></div>
+    <div class="step apoyo"><div class="n">CAA3 · APOYO ADMIN.</div><div class="t">Apoyo Gerencial</div><div class="d">Órdenes de compra, coordinación, documentación</div><div class="cost">S/ 1,000.00</div></div>
+  </div>
+
+  <div class="callout"><b>Problema que motivó el costeo:</b> la empresa no controlaba sus costos — sin kardex al día ni control formal de horas. Sin costos precisos no puede fijar precios de exportación competitivos ni conocer el margen real por modelo. <b>Objetivo:</b> determinar el costo de producción de cada marco identificando qué recursos consume cada proceso y producto.</div>
+</section>
+
+<!-- ============ SECCIÓN: ELEMENTOS ============ -->
+<section id="elementos">
+  <p class="eyebrow">Recursos</p>
+  <h2>35 elementos de costo,<br><em>21 inductores</em> que los explican</h2>
+  <p class="lead">Cada recurso lleva un código EC y un inductor I que indica la causa real del costo. Pasa el cursor sobre el inductor para ver su lógica. Filtra por categoría o busca por nombre.</p>
+  <div class="tools">
+    <input class="search" id="q" type="search" placeholder="Buscar elemento… (ej. soldadura, depreciación, argón)" aria-label="Buscar elemento de costo">
+    <button class="fbtn on" data-f="all">Todos</button>
+    <button class="fbtn" data-f="PERSONAL">Personal</button>
+    <button class="fbtn" data-f="INSUMOS">Insumos</button>
+    <button class="fbtn" data-f="SERVICIOS">Servicios</button>
+    <button class="fbtn" data-f="OTROS">Otros</button>
+  </div>
+  <div class="twrap">
+    <table id="tabla-ec">
+      <thead><tr><th class="mono">COD</th><th>Elemento de costo</th><th>Categoría</th><th class="num">Costo mensual</th><th>Inductor</th></tr></thead>
+      <tbody></tbody>
+      <tfoot><tr><td></td><td>TOTAL</td><td></td><td class="num" id="ec-total"></td><td></td></tr></tfoot>
+    </table>
+  </div>
+  <h3>Catálogo de inductores <span class="tick">—</span> la base de cada distribución</h3>
+  <div class="grid3" id="ind-cards"></div>
+</section>
+
+<!-- ============ SECCIÓN: PROCESO 1 ============ -->
+<section id="proceso1">
+  <p class="eyebrow">Proceso 1 · Recursos → Centros</p>
+  <h2>Dónde cae cada sol<br><em>y por qué</em></h2>
+  <p class="lead">La matriz distribuye los 35 elementos a los 5 centros. Cambia entre la vista de <b style="color:var(--amber)">costo en soles</b> y la vista de <b style="color:var(--cyan)">inductor</b> — que muestra la cantidad física (horas, kW, m², ítems) y la tasa resultante, igual que la plantilla Halcon.</p>
+  <div class="toggle" role="tablist">
+    <button class="on" id="btn-soles" onclick="p1view('soles')">Vista soles S/</button>
+    <button id="btn-ind" onclick="p1view('inductor')">Vista inductor</button>
+  </div>
+  <div class="twrap">
+    <table id="tabla-p1">
+      <thead><tr><th class="mono">COD</th><th>Elemento</th><th class="num">CAE<br>Diseño</th><th class="num">CAA1<br>Almacén</th><th class="num">CAO1<br>Corte</th><th class="num">CAO2<br>Armado</th><th class="num">CAO3<br>Acabados</th><th id="p1-last" class="num">Total S/</th></tr></thead>
+      <tbody></tbody>
+      <tfoot><tr id="p1-foot"></tr></tfoot>
+    </table>
+  </div>
+  <div class="callout" id="p1-note"><b>Vista soles:</b> el dinero asignado a cada centro. Este es el punto de partida de la cascada ABC: el total por centro alimenta el Proceso 2 (actividades), que luego se reasigna en los Procesos 3 y 4, hasta llegar al producto en el Proceso 5.</div>
+</section>
+
+<!-- ============ SECCIÓN: PROCESO 2 (ACTIVIDADES) ============ -->
+<section id="proceso2">
+  <p class="eyebrow">Proceso 2 · Centros → Actividades</p>
+  <h2>Cada centro se abre<br>en sus <em>actividades</em></h2>
+  <p class="lead">El costo acumulado de cada centro se reparte a sus actividades usando como inductor las horas-hombre (o transacciones) dedicadas a cada una. Toca cada centro para desplegarlo — las barras muestran el peso de cada actividad.</p>
+  <p class="hint" style="text-align:left">▸ Cascada ABC: Proceso 1 (recursos→centros) → <b style="color:var(--amber)">Proceso 2 (centros→actividades)</b> → Proceso 3 (diseño→operativos) → Proceso 4 (almacén→operativos) → Proceso 5 (→productos)</p>
+  <div id="acc-container"></div>
+  <div class="callout"><b>Nota metodológica:</b> las horas por actividad deben provenir del tareo real (aplicativo «Control de Pedido en Proceso» de la empresa), no de estimaciones. Es la condición para que este nivel sea plenamente válido en una tesis.</div>
+</section>
+
+<!-- ============ SECCIÓN: PROCESO 3 ============ -->
+<section id="proceso3">
+  <p class="eyebrow">Proceso 3 · Diseño → Apoyo y Operativos</p>
+  <h2>El diseño se reparte<br>a quien lo <em>usa</em></h2>
+  <p class="lead">Las 4 actividades estratégicas de Diseño (AE) no llegan directo al producto: su costo de S/ 4,090.10 se reasigna a los centros de apoyo y operativos según cuánto consume cada uno los servicios de diseño. El inductor es el número de planos/consultas que cada centro demanda.</p>
+  <div class="chart-card"><h4>Costo de Diseño distribuido a cada centro (S/)</h4><div class="chart-box" style="height:260px"><canvas id="ch-p3"></canvas></div></div>
+  <div class="twrap" style="margin-top:16px">
+    <table id="tabla-p3">
+      <thead><tr><th class="mono">COD</th><th>Actividad estratégica</th><th class="num">CAA1<br>Almacén</th><th class="num">CAO1<br>Corte</th><th class="num">CAO2<br>Armado</th><th class="num">CAO3<br>Acabados</th><th class="num">Costo AE S/</th></tr></thead>
+      <tbody></tbody>
+      <tfoot><tr id="p3-foot"></tr></tfoot>
+    </table>
+  </div>
+  <div class="callout"><b>Inductor de actividad:</b> la participación de cada centro en las actividades de diseño (planos solicitados, consultas técnicas). El total distribuido debe igualar el costo total de Diseño — <b>S/ 4,090.10</b>. ✓ Verificado.</div>
+</section>
+
+<!-- ============ SECCIÓN: PROCESO 4 ============ -->
+<section id="proceso4">
+  <p class="eyebrow">Proceso 4 · Almacén → Operativos</p>
+  <h2>El almacén sirve<br>a la <em>producción</em></h2>
+  <p class="lead">Las 5 actividades de Almacén (AA) se reasignan a los tres centros operativos. El inductor es el número de ítems/movimientos que cada proceso demanda del almacén (7 en Corte, 12 en Armado, 8 en Acabados) — la misma base que usó la tesis de Alegre.</p>
+  <div class="chart-card"><h4>Costo de Almacén distribuido a operativos (S/)</h4><div class="chart-box" style="height:260px"><canvas id="ch-p4"></canvas></div></div>
+  <div class="twrap" style="margin-top:16px">
+    <table id="tabla-p4">
+      <thead><tr><th class="mono">COD</th><th>Actividad de apoyo</th><th>Inductor</th><th class="num">CAO1<br>Corte</th><th class="num">CAO2<br>Armado</th><th class="num">CAO3<br>Acabados</th><th class="num">Costo AA S/</th></tr></thead>
+      <tbody></tbody>
+      <tfoot><tr id="p4-foot"></tr></tfoot>
+    </table>
+  </div>
+  <div class="callout"><b>Criterio (Paso 6 de Alegre):</b> los porcentajes corresponden a la cantidad de tipos de ítems que se manipulan en cada proceso. El total distribuido iguala el costo de Almacén — <b>S/ 1,235.73</b>. ✓ Verificado.</div>
+</section>
+
+<!-- ============ SECCIÓN: APOYO ADMIN ============ -->
+<section id="apoyo">
+  <p class="eyebrow">Proceso 4B · Apoyo administrativo → Operativos</p>
+  <h2>La oficina también<br><em>cuesta</em></h2>
+  <p class="lead">Contabilidad y Finanzas (CAA2) y Apoyo Gerencial (CAA3) no tocan el marco, pero su trabajo lo hace posible. Su costo de S/ 2,200 se reasigna a los centros operativos con inductores transaccionales.</p>
+  <div class="grid2">
+    <div class="card"><h4>CAA2 · Contabilidad y Finanzas — S/ 1,200</h4>
+      <p style="margin-bottom:10px">Inductor: <span class="ind-chip">N° de transacciones administrativas</span></p>
+      <div class="bar-row"><span class="cod">AF1</span><span>Elaborar estados financieros y reportes mensuales</span><span class="ind"></span><span class="amtc"></span></div>
+      <div class="bar-row"><span class="cod">AF2</span><span>Gestionar cobranzas de exportación y pagos</span><span class="ind"></span><span class="amtc"></span></div>
+      <div class="bar-row"><span class="cod">AF3</span><span>Procesar planilla y tributos (SUNAT)</span><span class="ind"></span><span class="amtc"></span></div>
+    </div>
+    <div class="card"><h4>CAA3 · Apoyo Gerencial — S/ 1,000</h4>
+      <p style="margin-bottom:10px">Inductor: <span class="ind-chip">N° de coordinaciones / gestiones</span></p>
+      <div class="bar-row"><span class="cod">AG1</span><span>Emitir órdenes de compra de bajo monto</span><span class="ind"></span><span class="amtc"></span></div>
+      <div class="bar-row"><span class="cod">AG2</span><span>Coordinar con clientes y proveedores</span><span class="ind"></span><span class="amtc"></span></div>
+      <div class="bar-row"><span class="cod">AG3</span><span>Gestionar documentación de exportación</span><span class="ind"></span><span class="amtc"></span></div>
+    </div>
+  </div>
+  <h3>Reasignación a operativos <span class="tick">—</span> S/ 2,200 distribuidos</h3>
+  <div class="chart-card"><h4>Cuánto recibe cada centro operativo</h4><div class="chart-box" style="height:260px"><canvas id="ch-apoyo"></canvas></div></div>
+  <div class="twrap" style="margin-top:16px">
+    <table>
+      <thead><tr><th class="mono">COD</th><th>Centro de apoyo</th><th class="num">Costo S/</th><th>Inductor</th><th class="num">→ CAO1</th><th class="num">→ CAO2</th><th class="num">→ CAO3</th></tr></thead>
+      <tbody>
+        <tr><td class="ec">CAA2</td><td>Contabilidad y Finanzas</td><td class="num">1,200.00</td><td><span class="ind-chip">2 · 4 · 1 transacciones</span></td><td class="num">342.86</td><td class="num">685.71</td><td class="num">171.43</td></tr>
+        <tr><td class="ec">CAA3</td><td>Apoyo Gerencial</td><td class="num">1,000.00</td><td><span class="ind-chip">10 · 12 · 8 gestiones</span></td><td class="num">333.33</td><td class="num">400.00</td><td class="num">266.67</td></tr>
+      </tbody>
+      <tfoot><tr><td></td><td>TOTAL DISTRIBUIDO</td><td class="num">2,200.00</td><td></td><td class="num">676.19</td><td class="num">1,085.71</td><td class="num">438.10</td></tr></tfoot>
+    </table>
+  </div>
+  <div class="callout"><b>Criterio contable a confirmar con la asesora:</b> en la tesis original de Alegre estos costos administrativos son gasto del periodo (no costo del producto). Si se tratan como apoyo a producción — como en la plantilla Halcon — sí se incorporan al CIF vía este proceso.</div>
+</section>
+
+<!-- ============ SECCIÓN: PRODUCTOS ============ -->
+<section id="productos">
+  <p class="eyebrow">Proceso 5 · Centros → Productos</p>
+  <h2>El costo final<br>de cada <em>marco</em></h2>
+  <p class="lead">Diciembre 2022: 166 unidades en 8 líneas. El inductor final son las horas-hombre reales + el número de pedidos. Ordena la tabla tocando los encabezados; el gráfico compara los costos unitarios.</p>
+  <div class="grid2" style="grid-template-columns:1.15fr .85fr">
+    <div class="chart-card"><h4>Costo unitario por producto (S/)</h4><div class="chart-box"><canvas id="ch-prod"></canvas></div></div>
+    <div class="chart-card"><h4>Composición del costo total</h4><div class="chart-box"><canvas id="ch-comp"></canvas></div></div>
+  </div>
+  <div class="twrap" style="margin-top:16px">
+    <table id="tabla-prod">
+      <thead><tr>
+        <th data-k="obc" class="sortable mono">OBC</th><th data-k="name" class="sortable">Producto</th>
+        <th data-k="md" class="sortable num">Mat. Directos</th><th data-k="mod" class="sortable num">MOD</th>
+        <th data-k="cif" class="sortable num">CIF</th><th data-k="total" class="sortable num">Costo Total</th>
+        <th data-k="un" class="sortable num">Unid.</th><th data-k="unit" class="sortable num">Costo Unit.</th>
+      </tr></thead>
+      <tbody></tbody>
+      <tfoot><tr><td></td><td>TOTAL DIC-2022</td><td class="num">28,230.90</td><td class="num">20,158.24</td><td class="num">24,458.45</td><td class="num">71,099.22</td><td class="num">166</td><td class="num">428.31</td></tr></tfoot>
+    </table>
+  </div>
+  <p class="hint" style="text-align:left;margin-top:8px">▸ Toca un encabezado para ordenar · El costo total incluye inventarios en proceso y ajuste CIF</p>
+</section>
+
+<!-- ============ SECCIÓN: ANÁLISIS ============ -->
+<section id="analisis">
+  <p class="eyebrow">Análisis</p>
+  <h2>Qué revela<br>el <em>modelo</em></h2>
+  <div class="grid3">
+    <div class="card"><h4>El armado manda</h4><div class="big">S/ 15,174</div><p>CAO2 Armado es el centro más caro: concentra la soldadura TIG, la operación crítica y más especializada. Ahí está la palanca de eficiencia.</p></div>
+    <div class="card"><h4>El volumen abarata</h4><div class="big">S/ 308.60</div><p>La línea en serie cuesta 25-53% menos que los personalizados (S/ 410–660). Ampliarla mejoraría el margen promedio.</p></div>
+    <div class="card"><h4>Complejidad = costo</h4><div class="big">S/ 659.68</div><p>El FS Full Suspensión es el marco más caro: doble suspensión, más uniones soldadas, más horas de armado.</p></div>
+  </div>
+
+  <h3>Estructura del CIF <span class="tick">—</span> costo por centro</h3>
+  <div class="chart-card"><h4>Costo acumulado por centro de actividad (S/)</h4><div class="chart-box" style="height:280px"><canvas id="ch-centros"></canvas></div></div>
+
+  <h3>Calidad de los inductores <span class="tick">—</span> auditoría del modelo</h3>
+  <div id="verdicts"></div>
+  <div class="callout"><b>Prioridad inmediata:</b> implementar el tareo real de horas por actividad. Es lo que convierte este modelo de una aproximación pedagógica en un ABC defendible para la tesis y para decidir precios de exportación. Los productos de 1-2 unidades (Ciclocross, Bikepacking) deben cotizarse con recargo por personalización.</div>
+</section>
+</main>
+
+<footer>
+  BIKE SAC · Sistema de Costeo ABC · Diciembre 2022 &nbsp;·&nbsp; Fuente: Alegre del Águila, G. M. (2023), PUCP — <a href="http://hdl.handle.net/20.500.12404/25141" target="_blank" rel="noopener">hdl.handle.net/20.500.12404/25141</a><br>Elaborado para USAT · Asesoría de tesis · Estructura de inductores según plantilla Halcon S.A.C.
+</footer>
+
+<script>
+/* ============ DATA ============ */
+const CENTROS=[
+ {cod:"CAE",name:"Diseño",tipo:"Estratégico",cost:4090.10,d:"Planos y especificaciones técnicas"},
+ {cod:"CAA1",name:"Almacén",tipo:"Apoyo",cost:1235.73,d:"Custodia y entrega de materiales"},
+ {cod:"CAO1",name:"Corte y Maquinado",tipo:"Operativo",cost:12733.86,d:"Corte, conificado, fresa y torno"},
+ {cod:"CAO2",name:"Armado",tipo:"Operativo",cost:15174.35,d:"Soldadura, alineación y calidad"},
+ {cod:"CAO3",name:"Acabados",tipo:"Operativo",cost:9978.26,d:"Arenado, pintura, horneado, embalaje"}];
+
+const ELEM=[
+["EC01","Honorarios Supervisor de Producción","PERSONAL",[0,773.68,729.58,1090.09,926.16],"I01","m² supervisados",[0,97.2,91.66,136.95,116.35]],
+["EC02","Honorarios Diseñador","PERSONAL",[3900,0,0,0,0],"I02","% dedicación a diseño",[1,0,0,0,0]],
+["EC03","Honorarios Almacenero","PERSONAL",[0,0,457.04,783.5,522.33],"I03","N° ítems manipulados",[0,0,7,12,8]],
+["EC04","MOD Maquinista (MR)","PERSONAL",[0,0,2606.4,0,0],"I04","Horas-hombre maquinista",[0,0,160,0,0]],
+["EC05","MOD Cortador (TN)","PERSONAL",[0,0,949.76,949.76,474.88],"I05","Horas-hombre cortador",[0,0,64,64,32]],
+["EC06","MOD Armador (NL)","PERSONAL",[0,0,0,2374.4,0],"I06","Horas-hombre armador",[0,0,0,160,0]],
+["EC07","MOD Soldador (LS)","PERSONAL",[0,0,0,2374.4,0],"I07","Horas-hombre soldador",[0,0,0,160,0]],
+["EC08","MOD Soldador (JL)","PERSONAL",[0,0,0,2374.4,0],"I08","Horas-hombre soldador",[0,0,0,160,0]],
+["EC09","MOD Habilitador (GT)","PERSONAL",[0,0,0,2374.4,0],"I09","Horas-hombre habilitador",[0,0,0,160,0]],
+["EC10","MOD Pintor (FN)","PERSONAL",[0,0,0,0,2363.2],"I10","Horas-hombre pintor",[0,0,0,0,160]],
+["EC11","Argón (gas de soldadura)","INSUMOS",[0,0,0,800,0],"I11","% consumo armado",[0,0,0,1,0]],
+["EC12","Aporte de soldadura","INSUMOS",[0,0,0,120,0],"I11","% consumo armado",[0,0,0,1,0]],
+["EC13","Refuerzos","INSUMOS",[0,0,0,144,0],"I11","% consumo armado",[0,0,0,1,0]],
+["EC14","Pintura","INSUMOS",[0,0,0,0,1500],"I12","% consumo acabados",[0,0,0,0,1]],
+["EC15","Granalla (arenado)","INSUMOS",[0,0,0,0,200],"I12","% consumo acabados",[0,0,0,0,1]],
+["EC16","Laca","INSUMOS",[0,0,0,0,1200],"I12","% consumo acabados",[0,0,0,0,1]],
+["EC17","Vinil (stickers)","INSUMOS",[0,0,0,0,60],"I12","% consumo acabados",[0,0,0,0,1]],
+["EC18","Burbupack (embalaje)","INSUMOS",[0,0,0,0,322.5],"I12","% consumo acabados",[0,0,0,0,1]],
+["EC19","Film (embalaje)","INSUMOS",[0,0,0,0,105],"I12","% consumo acabados",[0,0,0,0,1]],
+["EC20","Cajas","INSUMOS",[0,0,0,0,240],"I12","% consumo acabados",[0,0,0,0,1]],
+["EC21","Cinta embalaje","INSUMOS",[0,0,0,0,180],"I12","% consumo acabados",[0,0,0,0,1]],
+["EC22","Grapa industrial","INSUMOS",[0,0,0,0,100],"I12","% consumo acabados",[0,0,0,0,1]],
+["EC23","Herramientas menores","INSUMOS",[0,0,86.89,130.51,0],"I13","% uso de herramientas",[0,0,0.4,0.6,0]],
+["EC24","Internet","SERVICIOS",[48,0,12,18,6],"I14","% de uso (conexión)",[0.57,0,0.14,0.21,0.07]],
+["EC25","Electricidad","SERVICIOS",[0,0,508.84,215.99,75.17],"I15","Kilowatts consumidos",[0,0,637,270,94]],
+["EC26","Agua","SERVICIOS",[0,4.5,9,18,4.5],"I16","N° de trabajadores",[0,1,2,4,1]],
+["EC27","Gas (hornos)","SERVICIOS",[0,0,0,0,480],"I17","% consumo gas",[0,0,0,0,1]],
+["EC28","Hosting, web, drive","SERVICIOS",[25.1,0,0,0,0],"I14","% de uso (conexión)",[1,0,0,0,0]],
+["EC29","Licencia programa diseño","SERVICIOS",[117,0,0,0,0],"I18","% uso directo diseño",[1,0,0,0,0]],
+["EC30","Seguros","OTROS",[0,24.92,23.5,35.11,29.83],"I19","m² de área",[0,97.2,91.66,136.95,116.35]],
+["EC31","Depreciación Inmueble","OTROS",[0,245.66,231.66,346.13,294.08],"I19","m² de área",[0,97.2,91.66,136.95,116.35]],
+["EC32","Vigilancia","OTROS",[0,170.39,160.68,240.07,203.97],"I19","m² de área",[0,97.2,91.66,136.95,116.35]],
+["EC33","Impuesto Predial y Arbitrios","OTROS",[0,16.58,15.63,23.35,19.84],"I19","m² de área",[0,97.2,91.66,136.95,116.35]],
+["EC34","Mantenimiento de equipos","OTROS",[0,0,586.71,8.32,24.97],"I20","% mantenimiento anual",[0,0,0.946,0.013,0.041]],
+["EC35","Depreciación de Equipos","OTROS",[0,0,6356.17,753.92,645.83],"I21","N° / valor de equipos",[0,0,0.82,0.097,0.083]]];
+
+const INDUC=[
+["I01","m² supervisados","Reparte al supervisor según el área que vigila"],
+["I02","% dedicación a diseño","Directo: el diseñador trabaja 100% en diseño"],
+["I03","N° de ítems","Almacén según variedad de ítems por proceso"],
+["I04-I10","Horas-hombre por operario","Tiempo real del tareo (app Control de Pedido)"],
+["I11","% consumo armado","Insumos de soldadura: 100% directo a armado"],
+["I12","% consumo acabados","Pintura y embalaje: 100% directo a acabados"],
+["I13","% uso de herramientas","Herramientas menores según uso estimado"],
+["I14","% de uso (conexión)","Internet y hosting según uso de conexión"],
+["I15","Kilowatts consumidos","Consumo eléctrico real por equipo y luminaria"],
+["I16","N° de trabajadores","Agua según personas por proceso"],
+["I17","% consumo gas","Gas: 100% directo a hornos de acabados"],
+["I18","% uso directo","Licencia de software: 100% a diseño"],
+["I19","m² de área","Costos de espacio: seguros, depreciación, vigilancia"],
+["I20","% mantenimiento anual","Según costo anual de mantenimiento por equipo"],
+["I21","N° / valor de equipos","Depreciación según equipos por proceso"]];
+
+const ACTIV=[
+ {cod:"CAE",color:"var(--lav)",cost:4090.10,acts:[["AE1","Recibir y analizar especificaciones del cliente","HH diseño",2],["AE2","Diseñar plano técnico del marco","HH diseño",4],["AE3","Codificar y registrar el pedido","HH diseño",1],["AE4","Aprobar plano y emitir orden de trabajo","HH diseño",2]]},
+ {cod:"CAA1",color:"var(--rose)",cost:1235.73,acts:[["AA1","Recepcionar tubería y materiales","N° recepciones",3],["AA2","Actualizar kardex / bincard","N° movimientos",2],["AA3","Entregar materiales a corte","N° entregas",3],["AA4","Entregar suministros a procesos","N° entregas",2],["AA5","Realizar inventarios periódicos","N° conteos",1]]},
+ {cod:"CAO1",color:"var(--tan)",cost:12733.86,acts:[["AO1","Verificar plano y stock de tubería","HH corte",1],["AO2","Medir y cortar tubería según plano","HH corte",4],["AO3","Conificar, fresar y tornear piezas","HH corte",3],["AO4","Trasladar piezas al área de armado","HH corte",1]]},
+ {cod:"CAO2",color:"var(--tan)",cost:15174.35,acts:[["AO5","Habilitar matriz de armado","HH armado",2],["AO6","Soldar punto provisional","HH armado",3],["AO7","Soldar definitivamente las uniones","HH armado",5],["AO8","Alinear marco soldado","HH armado",2],["AO9","Inspección de calidad","HH armado",2]]},
+ {cod:"CAO3",color:"var(--tan)",cost:9978.26,acts:[["AO10","Arenar el marco","HH acabado",2],["AO11","Pintar marco","HH acabado",3],["AO12","Hornear pintura","HH acabado",2],["AO13","Aplicar calcomanías","HH acabado",1],["AO14","Embalar marco","HH acabado",2]]}];
+
+// Proceso 3: Diseño (AE) reasignado a CAA1, CAO1, CAO2, CAO3
+const P3=[
+ {cod:"AE1",name:"Recibir y analizar especificaciones del cliente",pct:[0.10,0.30,0.30,0.30],cost:884.94,ind:[1,3,3,3]},
+ {cod:"AE2",name:"Diseñar plano técnico del marco",pct:[0.05,0.35,0.40,0.20],cost:1868.61,ind:[1,7,8,4]},
+ {cod:"AE3",name:"Codificar y registrar el pedido",pct:[0.20,0.30,0.30,0.20],cost:451.61,ind:[2,3,3,2]},
+ {cod:"AE4",name:"Aprobar plano con cliente y emitir orden",pct:[0.15,0.30,0.35,0.20],cost:884.94,ind:[3,6,7,4]}];
+const P3TOT=[404.99,1320.46,1458.14,906.51]; // a CAA1,CAO1,CAO2,CAO3
+
+// Proceso 4: Almacén (AA) reasignado a CAO1, CAO2, CAO3
+const P4=[
+ {cod:"AA1",name:"Recepcionar tubería y materiales",ind:"7·12·8 ítems",pct:[0.259,0.444,0.296],cost:313.46},
+ {cod:"AA2",name:"Actualizar kardex / bincard",ind:"1·2·1 movim.",pct:[0.25,0.50,0.25],cost:202.94},
+ {cod:"AA3",name:"Entregar materiales a corte",ind:"1·0·0 entregas",pct:[1,0,0],cost:313.46},
+ {cod:"AA4",name:"Entregar suministros a procesos",ind:"2·5·3 entregas",pct:[0.20,0.50,0.30],cost:202.94},
+ {cod:"AA5",name:"Realizar inventarios periódicos",ind:"7·12·8 conteos",pct:[0.259,0.444,0.296],cost:202.94}];
+const P4TOT=[538.66,432.45,264.62]; // a CAO1,CAO2,CAO3
+
+const PROD=[
+ {obc:"OBC1",name:"Marco Enduro",md:8943.82,mod:6982.05,cif:8894.48,total:28344.03,un:69,unit:410.78},
+ {obc:"OBC2",name:"FS Full Suspensión",md:8484.80,mod:8198.11,cif:8655.03,total:25067.71,un:38,unit:659.68},
+ {obc:"OBC3",name:"Marco Grava",md:727.70,mod:378.93,cif:671.90,total:1625.36,un:4,unit:406.34},
+ {obc:"OBC4",name:"Marco Ciclocross",md:163.57,mod:100.75,cif:154.62,total:442.09,un:1,unit:442.09},
+ {obc:"OBC5",name:"Marco Carrera",md:452.57,mod:323.96,cif:479.81,total:896.33,un:2,unit:448.17},
+ {obc:"OBC6",name:"Marco Bikepacking",md:461.04,mod:245.59,cif:372.55,total:433.36,un:1,unit:433.36},
+ {obc:"OBC7",name:"Horquilla rígida",md:200.20,mod:479.68,cif:1011.86,total:1946.41,un:11,unit:176.95},
+ {obc:"OBC8",name:"Línea en serie",md:8797.20,mod:3449.17,cif:4218.19,total:12343.93,un:40,unit:308.60}];
+
+const VERD=[
+ ["Recursos → Centros (P1)","kW, m², ítems, horas-hombre — bases con causa-efecto real, tomadas de las Tablas 10-12 de la tesis.","SÓLIDO","ok"],
+ ["Centros → Actividades (P2)","Horas-hombre por actividad. Válido si las horas provienen del tareo real, no de estimaciones.","SÓLIDO*","ok"],
+ ["Diseño → Operativos (P3)","Porcentajes estimados con lógica plausible pero sin respaldo empírico todavía.","APROXIMADO","warn"],
+ ["Almacén → Operativos (P4)","N° de ítems por proceso (7·12·8) — la misma base que usó la tesis. Causa-efecto clara.","SÓLIDO","ok"],
+ ["Apoyo admin. → Operativos (4B)","N° de transacciones y gestiones. Inductor transaccional correcto; requiere registro real.","APROXIMADO","warn"],
+ ["Centros → Productos (P5)","Horas-hombre reales + N° de pedidos, con tasas presupuestadas de la Tabla 15.","SÓLIDO","ok"]];
+
+/* ============ HELPERS ============ */
+const S=n=>"S/ "+n.toLocaleString("es-PE",{minimumFractionDigits:2,maximumFractionDigits:2});
+const $=q=>document.querySelector(q); const $$=q=>document.querySelectorAll(q);
+
+/* ============ SPLASH ============ */
+window.addEventListener("load",()=>{setTimeout(()=>$("#splash").classList.add("hide"),2600);animateCounters();});
+
+/* ============ COUNTERS ============ */
+function animateCounters(){
+ $$("[data-count]").forEach(el=>{
+  const end=+el.dataset.count, pre=el.dataset.pre||"", dur=1400, t0=performance.now();
+  function tick(t){const p=Math.min((t-t0)/dur,1), v=Math.round(end*(1-Math.pow(1-p,3)));
+   el.textContent=pre+v.toLocaleString("es-PE"); if(p<1)requestAnimationFrame(tick);}
+  requestAnimationFrame(tick);});
+}
+
+/* ============ TABS ============ */
+const charts={};
+function go(id){
+ $$("section").forEach(s=>s.classList.remove("show"));
+ $("#"+id).classList.add("show");
+ $$(".tab").forEach(t=>t.classList.toggle("active",t.dataset.s===id));
+ window.scrollTo({top:0,behavior:"smooth"});
+ if(id==="productos")initProdCharts();
+ if(id==="analisis")initCentrosChart();
+ if(id==="apoyo")initApoyoChart();
+ if(id==="proceso3")initP3();
+ if(id==="proceso4")initP4();
+ if(id==="proceso2")setTimeout(()=>$$(".mini-bar i").forEach(b=>b.style.width=b.dataset.w),150);
+}
+
+/* ============ HERO NODES ============ */
+const tip=$("#tip");
+$$(".node").forEach(n=>{
+ const show=()=>{const c=CENTROS[+n.dataset.c];
+  tip.innerHTML=`<b>${c.cod} · ${c.name}</b><span class="m">${S(c.cost)}</span><div class="d">${c.tipo} — ${c.d}</div>`;
+  const r=n.getBoundingClientRect(), w=n.closest(".frame-wrap").getBoundingClientRect();
+  tip.style.left=Math.min(r.left-w.left-40, w.width-230)+"px";
+  tip.style.top=(r.top-w.top-96)+"px";
+  tip.classList.add("on"); $$(".node").forEach(x=>x.classList.remove("on")); n.classList.add("on");};
+ n.addEventListener("mouseenter",show); n.addEventListener("click",show);
+ n.addEventListener("mouseleave",()=>{tip.classList.remove("on");n.classList.remove("on");});
+});
+
+/* ============ ELEMENTOS TABLE ============ */
+let filtro="all";
+function renderEC(){
+ const q=($("#q").value||"").toLowerCase();
+ const tb=$("#tabla-ec tbody"); tb.innerHTML="";
+ let tot=0;
+ ELEM.forEach(e=>{
+  const [cod,name,cat,dist,ic,idesc]=e; const amt=dist.reduce((a,b)=>a+b,0);
+  if(filtro!=="all"&&cat!==filtro)return;
+  if(q&&!name.toLowerCase().includes(q)&&!cod.toLowerCase().includes(q)&&!idesc.toLowerCase().includes(q))return;
+  tot+=amt;
+  tb.insertAdjacentHTML("beforeend",
+   `<tr><td class="ec">${cod}</td><td>${name}</td><td class="cat-${cat.split(" ")[0]}">${cat}</td><td class="num">${S(amt)}</td><td><span class="ind-chip" title="${idesc}">${ic} · ${idesc}</span></td></tr>`);
+ });
+ $("#ec-total").textContent=S(tot);
+}
+$("#q").addEventListener("input",renderEC);
+$$(".fbtn").forEach(b=>b.addEventListener("click",()=>{ $$(".fbtn").forEach(x=>x.classList.remove("on")); b.classList.add("on"); filtro=b.dataset.f; renderEC(); }));
+renderEC();
+
+/* inductor cards */
+INDUC.forEach(([c,n,d])=>{
+ $("#ind-cards").insertAdjacentHTML("beforeend",
+  `<div class="card"><h4 style="color:var(--cyan)">${c}</h4><p style="color:var(--text);font-weight:600;margin-bottom:4px">${n}</p><p>${d}</p></div>`);
+});
+
+/* ============ PROCESO 1 (toggle soles/inductor) ============ */
+function p1view(mode){
+ $("#btn-soles").classList.toggle("on",mode==="soles");
+ $("#btn-ind").classList.toggle("on",mode==="inductor");
+ const tb=$("#tabla-p1 tbody"); tb.innerHTML="";
+ const foot=$("#p1-foot"); const last=$("#p1-last");
+ if(mode==="soles"){
+  last.textContent="Total S/";
+  const sums=[0,0,0,0,0]; let g=0;
+  ELEM.forEach(([cod,name,,dist])=>{
+   const t=dist.reduce((a,b)=>a+b,0); g+=t; dist.forEach((v,i)=>sums[i]+=v);
+   tb.insertAdjacentHTML("beforeend",`<tr><td class="ec">${cod}</td><td>${name}</td>${dist.map(v=>`<td class="num">${v?S(v):"—"}</td>`).join("")}<td class="num" style="color:var(--amber);font-weight:600">${S(t)}</td></tr>`);});
+  foot.innerHTML=`<td></td><td>TOTAL POR CENTRO</td>${sums.map(v=>`<td class="num">${S(v)}</td>`).join("")}<td class="num">${S(g)}</td>`;
+  $("#p1-note").innerHTML="<b>Vista soles:</b> el dinero asignado a cada centro. El total por centro alimenta el Proceso 2.";
+ }else{
+  last.textContent="Tasa S/";
+  ELEM.forEach(([cod,name,,dist,ic,idesc,qty])=>{
+   const tq=qty.reduce((a,b)=>a+b,0), tc=dist.reduce((a,b)=>a+b,0);
+   const tasa=tq?tc/tq:0;
+   tb.insertAdjacentHTML("beforeend",`<tr><td class="ec" style="color:var(--cyan)">${ic}</td><td>${idesc} <span style="color:var(--muted);font-size:12px">(${cod})</span></td>${qty.map(v=>`<td class="num" style="color:var(--cyan)">${v?v.toLocaleString("es-PE",{maximumFractionDigits:2}):"—"}</td>`).join("")}<td class="num" style="color:var(--gold);font-weight:600">${tasa?tasa.toLocaleString("es-PE",{minimumFractionDigits:2,maximumFractionDigits:2}):"—"}</td></tr>`);});
+  foot.innerHTML=`<td colspan="8" style="text-align:left;font-weight:400;color:var(--muted);font-family:'Barlow'">TASA = Costo ÷ Total del inductor · Indica cuánto cuesta cada unidad del inductor (S/ por hora, por m², por kW, por ítem)</td>`;
+  $("#p1-note").innerHTML="<b>Vista inductor:</b> la cantidad física de cada base por centro (horas, kW, m², ítems, %) y la tasa resultante — la estructura de la plantilla Halcon. Ejemplo: I04 maquinista = 160 horas → tasa S/ 16.29/hora.";
+ }
+}
+p1view("soles");
+
+/* ============ PROCESO 2 ACCORDIONS ============ */
+const accC=$("#acc-container");
+ACTIV.forEach((c,i)=>{
+ const centro=CENTROS.find(x=>x.cod===c.cod);
+ const tq=c.acts.reduce((a,x)=>a+x[3],0);
+ const rows=c.acts.map(([cod,name,ind,q])=>{
+  const w=(q/tq*100).toFixed(1), amt=c.cost*q/tq;
+  return `<div class="bar-row"><span class="cod">${cod}</span><span>${name}<div class="mini-bar"><i data-w="${w}%"></i></div></span><span class="ind">${ind} · ${q} (${w}%)</span><span class="amtc">${S(amt)}</span></div>`;}).join("");
+ accC.insertAdjacentHTML("beforeend",
+  `<div class="acc${i===0?" open":""}"><div class="acc-head" onclick="this.parentElement.classList.toggle('open');setTimeout(()=>document.querySelectorAll('.mini-bar i').forEach(b=>b.style.width=b.dataset.w),120)">
+   <span class="dot" style="background:${c.color}"></span><span class="name">${c.cod} · ${centro.name}</span><span class="amt">${S(c.cost)}</span><span class="chev">▾</span></div>
+   <div class="acc-body"><div class="inner">${rows}</div></div></div>`);
+});
+
+/* ============ PRODUCTOS TABLE + SORT ============ */
+let sortK="unit", sortD=-1;
+function renderProd(){
+ const tb=$("#tabla-prod tbody"); tb.innerHTML="";
+ [...PROD].sort((a,b)=>(a[sortK]>b[sortK]?1:-1)*sortD).forEach(p=>{
+  tb.insertAdjacentHTML("beforeend",`<tr><td class="ec">${p.obc}</td><td><b>${p.name}</b></td><td class="num">${S(p.md)}</td><td class="num">${S(p.mod)}</td><td class="num">${S(p.cif)}</td><td class="num">${S(p.total)}</td><td class="num">${p.un}</td><td class="num" style="color:var(--amber);font-weight:600">${S(p.unit)}</td></tr>`);});
+}
+$$("#tabla-prod th.sortable").forEach(th=>th.addEventListener("click",()=>{
+ const k=th.dataset.k; if(sortK===k)sortD*=-1; else{sortK=k;sortD=-1;} renderProd();}));
+renderProd();
+
+/* ============ CHARTS ============ */
+Chart.defaults.color="#8A97A5"; Chart.defaults.font.family="'Barlow',sans-serif";
+Chart.defaults.borderColor="#2A3947";
+function initProdCharts(){
+ if(charts.prod)return;
+ const sorted=[...PROD].sort((a,b)=>b.unit-a.unit);
+ charts.prod=new Chart($("#ch-prod"),{type:"bar",data:{labels:sorted.map(p=>p.name),
+  datasets:[{data:sorted.map(p=>p.unit),backgroundColor:sorted.map((p,i)=>i===0?"#F5A623":"#4FB3BF"),borderRadius:4}]},
+  options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+   tooltip:{callbacks:{label:c=>S(c.raw)}}},scales:{x:{grid:{color:"#22303C"}},y:{grid:{display:false}}}}});
+ charts.comp=new Chart($("#ch-comp"),{type:"doughnut",data:{labels:["Materiales Directos","Mano de Obra Directa","CIF"],
+  datasets:[{data:[28230.90,20158.24,24458.45],backgroundColor:["#4FB3BF","#F5A623","#9D8FD0"],borderColor:"#0F1519",borderWidth:3}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"},
+   tooltip:{callbacks:{label:c=>` ${c.label}: ${S(c.raw)}`}}},cutout:"58%"}});
+}
+function initCentrosChart(){
+ if(charts.cen)return;
+ charts.cen=new Chart($("#ch-centros"),{type:"bar",data:{labels:CENTROS.map(c=>c.cod+" "+c.name),
+  datasets:[{data:CENTROS.map(c=>c.cost),backgroundColor:["#9D8FD0","#D98A9E","#D9995C","#F5A623","#D9995C"],borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+   tooltip:{callbacks:{label:c=>S(c.raw)}}},scales:{y:{grid:{color:"#22303C"}},x:{grid:{display:false}}}}});
+ /* verdicts */
+ const vc=$("#verdicts"); if(!vc.children.length)
+ VERD.forEach(([n,d,v,cl])=>vc.insertAdjacentHTML("beforeend",
+  `<div class="verdict"><span class="nv">${n}</span><span class="dv">${d}</span><span class="badge b-${cl}">${v}</span></div>`));
+}
+function initApoyoChart(){
+ if(charts.ap)return;
+ charts.ap=new Chart($("#ch-apoyo"),{type:"bar",data:{labels:["CAO1 Corte","CAO2 Armado","CAO3 Acabados"],
+  datasets:[{label:"CAA2 Contab. y Finanzas",data:[342.86,685.71,171.43],backgroundColor:"#4FB3BF",borderRadius:4},
+   {label:"CAA3 Apoyo Gerencial",data:[333.33,400.00,266.67],backgroundColor:"#F5A623",borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom"},
+   tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${S(c.raw)}`}}},
+  scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:"#22303C"}}}}});
+}
+
+/* ============ PROCESO 3 & 4 RENDER ============ */
+function renderP3(){
+ const tb=$("#tabla-p3 tbody"); if(tb.children.length)return; 
+ P3.forEach(a=>{
+  const cells=a.pct.map((p,i)=>`<td class="num">${S(a.cost*p)}<div style="font-size:10px;color:var(--cyan)">${(p*100).toFixed(0)}% · ${a.ind[i]}</div></td>`).join("");
+  tb.insertAdjacentHTML("beforeend",`<tr><td class="ec">${a.cod}</td><td>${a.name}</td>${cells}<td class="num" style="color:var(--amber);font-weight:600">${S(a.cost)}</td></tr>`);
+ });
+ const g=P3TOT.reduce((x,y)=>x+y,0);
+ $("#p3-foot").innerHTML=`<td></td><td>COSTO AE DISTRIBUIDO</td>${P3TOT.map(v=>`<td class="num">${S(v)}</td>`).join("")}<td class="num">${S(g)}</td>`;
+}
+function renderP4(){
+ const tb=$("#tabla-p4 tbody"); if(tb.children.length)return;
+ P4.forEach(a=>{
+  const cells=a.pct.map(p=>`<td class="num">${S(a.cost*p)}<div style="font-size:10px;color:var(--cyan)">${(p*100).toFixed(0)}%</div></td>`).join("");
+  tb.insertAdjacentHTML("beforeend",`<tr><td class="ec">${a.cod}</td><td>${a.name}</td><td><span class="ind-chip">${a.ind}</span></td>${cells}<td class="num" style="color:var(--amber);font-weight:600">${S(a.cost)}</td></tr>`);
+ });
+ const g=P4TOT.reduce((x,y)=>x+y,0);
+ $("#p4-foot").innerHTML=`<td></td><td>COSTO AA DISTRIBUIDO</td><td></td>${P4TOT.map(v=>`<td class="num">${S(v)}</td>`).join("")}<td class="num">${S(g)}</td>`;
+}
+function initP3(){
+ renderP3();
+ if(charts.p3)return;
+ charts.p3=new Chart($("#ch-p3"),{type:"bar",data:{labels:["CAA1 Almacén","CAO1 Corte","CAO2 Armado","CAO3 Acabados"],
+  datasets:[{data:P3TOT,backgroundColor:["#D98A9E","#D9995C","#F5A623","#D9995C"],borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+   tooltip:{callbacks:{label:c=>S(c.raw)}}},scales:{y:{grid:{color:"#22303C"}},x:{grid:{display:false}}}}});
+}
+function initP4(){
+ renderP4();
+ if(charts.p4)return;
+ charts.p4=new Chart($("#ch-p4"),{type:"bar",data:{labels:["CAO1 Corte","CAO2 Armado","CAO3 Acabados"],
+  datasets:[{data:P4TOT,backgroundColor:["#D9995C","#F5A623","#D9995C"],borderRadius:4}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
+   tooltip:{callbacks:{label:c=>S(c.raw)}}},scales:{y:{grid:{color:"#22303C"}},x:{grid:{display:false}}}}});
+}
+</script>
+</body>
+</html>
